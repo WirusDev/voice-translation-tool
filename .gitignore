@@ -168,4 +168,4 @@ dist
 
 .DS_Store
 
-/temp/
+/temp/*

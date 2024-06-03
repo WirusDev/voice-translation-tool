@@ -1,9 +1,10 @@
-import { Telegraf } from "telegraf";
-import axios from "axios";
-import { createWriteStream, promises as fsPromises } from "fs";
 import { exec } from "child_process";
-import { promisify } from "util";
+import { promises as fsPromises } from "fs";
+import axios from "axios";
 import dotenv from "dotenv";
+import { Telegraf } from "telegraf";
+import { createWriteStream } from "fs";
+import { promisify } from "util";
 import { Message } from "telegraf/typings/core/types/typegram";
 
 dotenv.config();
@@ -58,8 +59,10 @@ bot.on("message", async (ctx) => {
     console.log("Converted M4A to WAV");
 
     // Recognize speech using Whisper
-    const recognizedText = await recognizeSpeechWithWhisper(wavPath);
+    const { text: recognizedText, detected_language: detectedLanguage } =
+      await recognizeSpeechWithWhisper(wavPath);
     console.log("Recognized text:", recognizedText);
+    console.log("Detected language:", detectedLanguage);
 
     // Translate text using DeepL
     const translatedText = await translateTextWithDeepL(recognizedText);
@@ -80,11 +83,14 @@ bot.on("message", async (ctx) => {
   }
 });
 
-async function recognizeSpeechWithWhisper(filePath: string): Promise<string> {
+async function recognizeSpeechWithWhisper(
+  filePath: string
+): Promise<{ text: string; detected_language: string }> {
   const { execSync } = require("child_process");
   execSync(`python3 whisper_wrapper.py ${filePath}`);
-  const outputPath = filePath.replace(".wav", ".txt");
-  return require("fs").readFileSync(outputPath, "utf-8");
+  const outputPath = filePath.replace(".wav", ".json");
+  const result = JSON.parse(require("fs").readFileSync(outputPath, "utf-8"));
+  return { text: result.text, detected_language: result.language };
 }
 
 async function translateTextWithDeepL(text: string): Promise<string> {
@@ -96,7 +102,6 @@ async function translateTextWithDeepL(text: string): Promise<string> {
         auth_key: deeplApiKey,
         text: text,
         target_lang: "RU",
-        source_lang: "DE",
       },
     }
   );
